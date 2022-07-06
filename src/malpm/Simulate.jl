@@ -165,9 +165,9 @@ function doDeaths!(population::ABM{Person};
         typeof(livingPeople[1].info.age) == Rational{Int64} :
         true  # Assumption
 
-    doDeaths!(people=livingPeople,parameters=pars,data=data,verbose=verbose,sleeptime=sleeptime) 
+    (numberDeaths) = doDeaths!(people=livingPeople,parameters=pars,data=data,verbose=verbose,sleeptime=sleeptime) 
 
-    false ? population.variables[:numberDeaths] += 1 : nothing # Temporarily this way till realized 
+    false ? population.variables[:numberDeaths] += numberDeaths : nothing # Temporarily this way till realized 
 
 end # function doDeaths!
 

@@ -4,7 +4,7 @@ module Create
 using Utilities: Gender, unknown, female, male
 using XAgents: Town, House, Person, undefinedHouse, setPartner! 
 using MultiAgents: ABM, attach2DData!
-using MultiAgents.Util:(-) 
+using SomeUtil:(-) 
 
 import MultiAgents.Util: AbstractExample
 

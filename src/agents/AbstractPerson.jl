@@ -5,7 +5,7 @@
     the agent types House and Person  
 """
 
-using MultiAgents.Util: date2yearsmonths
+using SomeUtil: date2yearsmonths
 using Utilities: Gender, unknown, female, male
 
 export AbstractPerson, Kinship

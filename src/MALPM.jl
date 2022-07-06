@@ -6,4 +6,4 @@ module MALPM
     include("./malpm/Simulate.jl")
     include("./malpm/SimSetup.jl")
 
-end # LoneParentsModel
+end # MultiAgents.jl-dependent/LoneParentsModel

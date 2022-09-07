@@ -4,11 +4,7 @@ Module for defining a supertype, AbstractAgent for all Agent types
 """
 module XAgents
 
-    abstract type AbstractAgent
-    end
-
-    abstract type AbstractXAgent
-    end
+    using MultiAgents: AbstractAgent, AbstractXAgent, getIDCOUNTER
 
     include("./agents/town.jl")
     include("./agents/house.jl")

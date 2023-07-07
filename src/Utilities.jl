@@ -3,41 +3,22 @@ Diverse useful functions and types
 """
 module Utilities
 
-# Types 
-export Gender, male, female, unknown
 
-# Constants 
-export SimulationFolderPrefix
 
 # Functions
-export createTimeStampedFolder, p_yearly2monthly, applyTransition!, remove_unsorted! 
-export removefirst!, date2yearsmonths, age2yearsmonths
+export p_yearly2monthly, applyTransition!, remove_unsorted!, limit 
+export removefirst!, sorted_unique!, date2yearsmonths, age2yearsmonths
 export checkAssumptions!, ignoreAssumptions!, assumption, setDelay!, delay
 export setVerbose!, unsetVerbose!, verbose, verbosePrint, delayedVerbose
-export fuse
+export fuse, countSubset, @static_var
+export dump, dump_property, dump_header
+export sumClassBias, rateBias, preCalcRateBias!
 
 
 # list of types 
 
-"Gender type enumeration"
-@enum Gender unknown female male 
 
 # constants 
-
-"Folder in which simulation results are stored"
-const SimulationFolderPrefix = "Simulations_Folder"
-    
-# timeStamp ... 
-
-"create a folder in which simulation results are stored"
-function createTimeStampedFolder() 
-    #timeStamp = datetime.datetime.today().strftime('%Y_%m_%d-%H_%M_%S')
-    #folder = os.path.join('Simulations_Folder', timeStamp)
-    #if not os.path.exists(folder):
-    #    os.makedirs(folder)
-    # folder
-    "" 
-end
 
 "remove first occurance of e in list"
 function removefirst!(list, e)
@@ -59,22 +40,7 @@ age2yearsmonths(age) = date2yearsmonths(age)
 
 p_yearly2monthly(p) = 1 - (1-p)^(1/12)
 
-# constants 
-
-"Folder in which simulation results are stored"
-const SimulationFolderPrefix = "Simulations_Folder"
-
-# timeStamp ... 
-
-"create a folder in which simulation results are stored"
-function createTimeStampedFolder() 
-    #timeStamp = datetime.datetime.today().strftime('%Y_%m_%d-%H_%M_%S')
-    #folder = os.path.join('Simulations_Folder', timeStamp)
-    #if not os.path.exists(folder):
-    #    os.makedirs(folder)
-    # folder
-    "" 
-end
+limit(mi, v, ma) = min(ma, max(mi, v))
 
 "Very efficiently remove element `index` from `list`. Does not preserve ordering of `list`."
 function remove_unsorted!(list, index)
@@ -82,11 +48,25 @@ function remove_unsorted!(list, index)
     pop!(list)
 end
 
+function sorted_unique!(ar)
+    v = ar[end]
+    l = max(0, length(ar) - 1)
+    for i in l:-1:1
+        e = ar[i]
+        if e == v
+            ar[i] = ar[end]
+            pop!(ar)
+        else
+            v = e
+        end
+    end
+end
+
 "Apply a transition function to an iterator."
-function applyTransition!(people, transition, name, args...)
+function applyTransition!(transition, people, name)
     count = 0
     for p in people 
-        transition(p, args...)
+        transition(p)
         count += 1
     end
 
@@ -97,7 +77,53 @@ function applyTransition!(people, transition, name, args...)
     end
 end
 
+"keep variable across function calls"
+macro static_var(init)
+  var = gensym()
+  Base.eval(__module__, :(const $var = $init))
+  quote
+    global $var
+    $var
+  end |> esc
+end
+
+
+"Count the elements of a subset and a subset of that subset of population."
+@inline function countSubset(condAll, condSubset, population)
+    nAll = 0
+    nS = 0
+
+    for x in Iterators.filter(condAll, population)
+        nAll += 1
+        if condSubset(x)
+            nS += 1
+        end
+    end
+
+    nAll, nS
+end
+
  
+@inline function sumClassBias(classFn, range, bias)
+    sum(range) do c
+        classFn(c) * bias^c
+    end
+end
+
+@inline function rateBias(classFn, range, bias, thisClass)
+    bias^thisClass / sumClassBias(classFn, range, bias)  
+end
+
+
+@inline function preCalcRateBias!(fn, range, bias, array, offset = 0)
+    sumBias = sumClassBias(fn, range, bias)
+    for c in range
+        array[c+offset] = bias^c/sumBias
+    end
+end
+
+
+
 mutable struct Debug
     checkAssumptions :: Bool
     verbose :: Bool
@@ -161,4 +187,59 @@ end
 	# both put together
 	:($tuptyp($tup))
 end
+
+
+function dump_header(io, obj, FS="\t")
+    fns = join(fieldnames(typeof(obj)), FS)
+    print(io, fns)
+end
+
+function dump_property(io, prop, FS="\t", ES=",")
+    print(io, prop)
+end
+
+function dump_property(io, prop::Rational, FS="\t", ES=",")
+    print(io, Float64(prop))
+end
+
+function dump_property(io, prop::Vector, FS="\t", ES=",")
+    print(io, "(") 
+    for (i, el) in enumerate(prop)
+        dump_property(io, el, FS, ES)
+        if i != length(prop)
+        	print(io, ES)
+        end
+    end
+    print(io, ")")
+end
+
+function dump_property(io, prop::Matrix, FS="\t", ES=",")
+    print(io, "(") 
+    for i in 1:size(prop)[1]
+        print(io, "(") 
+        for j in 1:size(prop)[2]
+            el = prop[i, j]
+            dump_property(io, el, FS, ES)
+            if j != size(prop)[2]
+            	print(io, ES)
+            end
+        end
+        print(io, ")")
+        if i != size(prop)[1]
+        	print(io, ES)
+        end
+    end
+    print(io, ")")
+end
+
+function dump(io, obj, FS="\t", ES=",")
+    for (i, f) in enumerate(fieldnames(typeof(obj)))
+        dump_property(io, getfield(obj, f), FS, ES)
+        if i != fieldcount(typeof(obj))
+            print(io, FS)
+        end
+    end
+end
+
+
 end # module Utilities  

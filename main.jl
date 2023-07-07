@@ -2,14 +2,13 @@
 using Random
 
 # load main simulation code
-include("lpm.jl")
+include("mainHelpers.jl")
 
 # create parameters
 const simPars, pars = loadParameters(ARGS)
 
-# Atiyah: for more DRY Code, you may consider using 
-# LPM.ParamTypes.{seed!,reseed0!} within mainHelpers.jl 
-# and remove the following call & the using statement 
+include(simPars.analysisFile)
+
 Random.seed!(simPars.seed)
 
 # create model object
@@ -24,3 +23,16 @@ const logfile = setupLogging(simPars)
 @time runModel!(model, simPars, pars, logfile)
 
 close(logfile)
+
+if simPars.dumpAgents
+    open("agents.txt", "w") do f
+        saveAgents(f, model.pop)
+    end
+end
+
+if simPars.dumpHouses
+    open("houses.txt", "w") do f
+        saveHouses(f, model.houses)
+    end
+end
+

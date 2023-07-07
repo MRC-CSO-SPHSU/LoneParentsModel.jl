@@ -1,32 +1,40 @@
+using CompositeStructs
+
+
 export  House, HouseLocation
 
 export getHomeTown, getHouseLocation, undefined, isEmpty, town 
 
-using Utilities: removefirst!
+using Utilities
+using DeclUtils
+
+include("agents_modules/carehouse.jl")
 
 
 const HouseLocation  = NTuple{2,Int}
 
-"""
-Specification of a House Agent Type. 
 
-This file is included in the module XAgents 
-
-Type House to extend from AbstracXAgent.
-""" 
-
-mutable struct House{P, T} <: AbstractXAgent
-    id :: Int
+mutable struct House{P, T} 
     town :: T
     pos :: HouseLocation     # location in the town    
     # size::String                     # TODO enumeration type / at the moment not yet necessary  
     occupants::Vector{P}                           
-
-    House{P, T}(town, pos) where {P, T} = new(getIDCOUNTER(),town, pos,P[])
+    
+    # manual composition for now, @composite does not allow
+    # partial specialisation
+    
+    "net care this house produces (or demands for values < 0)"
+    netCareSupply :: Int
+    "net care this house exports to others (or receives for values < 0)"
+    careProvided :: Int
+    careConnections :: Vector{House{P, T}}
 end # House 
 
+House{P, T}(t, p) where{P, T} = House(t, p, P[], 0, 0, House{P, T}[])
 
-undefined(house) = house.town == undefinedTown && house.pos == (-1,-1)
+
+@export_forward House [netCareSupply, careProvided, careConnections]
+
 
 isEmpty(house) = length(house.occupants) == 0
 
@@ -34,28 +42,28 @@ town(house) = house.town
 
 # to replace the functions below in order to unify style across agents APIs
 "town associated with house"
-function getHomeTown(house::House)
+function getHomeTown(house)
     house.town
 end
 
 "town name associated with house"
-function getHomeTownName(house::House)
+function getHomeTownName(house)
     house.town.name
 end
 
 "house location in the associated town"
-function getHouseLocation(house::House)
+function getHouseLocation(house)
     house.pos
 end
 
 "add an occupant to a house"
-function addOccupant!(house::House{P}, person::P) where {P}
+function addOccupant!(house, person)
 	push!(house.occupants, person) 
 	nothing
 end
 
 "remove an occupant from a house"
-function removeOccupant!(house::House{P}, person::P) where {P}
+function removeOccupant!(house, person)
     removefirst!(house.occupants, person) 
 	# we can't assume anything about the layout of typeof(person)
 	#person.pos = undefinedHouse 
@@ -63,7 +71,7 @@ function removeOccupant!(house::House{P}, person::P) where {P}
 end
 
 "Costum print function for agents"
-function Base.show(io::IO, house::House{P}) where P
+function Base.show(io::IO, house::House) 
     townName = getHomeTownName(house)
     print("House $(house.id) @ town $(townName) @ $(house.pos)")
     length(house.occupants) == 0 ? nothing : print(" occupants: ") 
@@ -72,3 +80,16 @@ function Base.show(io::IO, house::House{P}) where P
     end
     println() 
 end 
+
+
+function Utilities.dump_header(io, h::House, FS)
+    print(io, "id", FS, "pos", FS)
+    Utilities.dump_header(io, h.care, FS); print(io, FS)
+end
+
+function Utilities.dump(io, house::House, FS="\t", ES=",")
+    print(io, objectid(house), FS)
+    Utilities.dump_property(io, house.pos, FS, ES); print(io, FS)
+    # no need to dump inhabitants as well, they link back anyway
+    Utilities.dump(io, house.care, FS, ES); print(io, FS)
+end

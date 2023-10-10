@@ -3,7 +3,7 @@ using Distributions
 export selectAgeTransition, ageTransition!, selectWorkTransition, workTransition!
 
 
-selectAgeTransition(person, pars) = alive(person)
+selectAgeTransition(person, pars) = person.alive
 
 function ageTransition!(person, time, model, pars)
     if isInMaternity(person)
@@ -25,71 +25,46 @@ function ageTransition!(person, time, model, pars)
     
     # TODO parameterise dt
     if !isSingle(person)
-        pTime!(person, pTime(person) + 1//12)
+        person.pTime = person.pTime + 1//12
     end
 
-    if age(person) == 18
+    if person.age == 18
         # also updates guardian
         setAsIndependent!(person)
     end
 end
 
 selectWorkTransition(person, pars) = 
-    alive(person) && status(person) != WorkStatus.retired && hasBirthday(person)
-
-function computeWage(person, pars)
-    # original formula
-    # c = log(I/F)
-    # wage = F * exp(c * exp(-1 * r * e))
-
-    fI = finalIncome(person)
-    iI = initialIncome(person)
-
-    wage = fI * (iI/fI)^exp(-1 * pars.incomeGrowthRate[classRank(person)+1] * workExperience(person))
-
-    dK = rand(Normal(0, pars.wageVar))
-
-    wage * exp(dK)
-end
-
-
+    person.alive && person.status != WorkStatus.retired && hasBirthday(person)
+    
 function workTransition!(person, time, model, pars)
-    if age(person) == pars.ageTeenagers
-        status!(person, WorkStatus.teenager)
+    if person.age == pars.ageTeenagers
+        person.status = WorkStatus.teenager
         return
     end
 
-    if age(person) == pars.ageOfAdulthood
-        status!(person, WorkStatus.student)
-        classRank!(person, 0)
+    if person.age == pars.ageOfAdulthood
+        person.status = WorkStatus.student
+        person.classRank = 0
 
         if rand() < pars.probOutOfTownStudent
-            outOfTownStudent!(person, true)
+            person.outOfTownStudent = true
         end
 
         return
     end
 
-    if age(person) == pars.ageOfRetirement
-        status!(person, WorkStatus.retired)
+    if person.age == pars.ageOfRetirement
+        person.status = WorkStatus.retired
         setEmptyJobSchedule!(person)
-        wage!(person, 0)
+        person.wage = 0
 
-        shareWorkingTime = workingPeriods(person) / pars.minContributionPeriods
+        shareWorkingTime = person.workingPeriods / pars.minContributionPeriods
 
         dK = rand(Normal(0, pars.wageVar))
-        pension!(person, shareWorkingTime * exp(dK))
+        person.pension = shareWorkingTime * exp(dK)
         return
     end
 
-    if status(person) == WorkStatus.worker && !isInMaternity(person)
-        # we assume full work load at this point
-        # in original: availableWorkingHours/workingHours
-        workingPeriods!(person, workingPeriods(person)+1)
-        # in original: availableWorkingHours/pars.weeklyHours[0]
-        workExperience!(person, workExperience(person)+1)
-        wage!(person, computeWage(person, pars))
-        # no care, therefore full time
-        income!(person, wage(person) * pars.weeklyHours[careNeedLevel(person)+1])
-    end
+    #person.income = person.wage * pars.weeklyHours[person.careNeedLevel+1]
 end

@@ -8,29 +8,30 @@ include("agents/house.jl")
 include("agents/person.jl")
 include("agents/world.jl")
 
-include("demography/common/income.jl")
-include("demography/common/jobmarket.jl")
+include("common/income.jl")
+include("common/jobmarket.jl")
 
-include("demography/setup/map.jl")
-include("demography/setup/population.jl")
-include("demography/setup/mapPop.jl")
-include("demography/setup/mapBenefits.jl")
+include("setup/map.jl")
+include("setup/population.jl")
+include("setup/mapPop.jl")
+include("setup/mapBenefits.jl")
 
-include("demography/simulate/allocate.jl")
-include("demography/simulate/death.jl")
-include("demography/simulate/birth.jl")  
-include("demography/simulate/divorce.jl")       
-include("demography/simulate/ageTransition.jl")
-include("demography/simulate/socialTransition.jl")
-include("demography/simulate/relocate.jl")
-include("demography/simulate/marriages.jl")
-include("demography/simulate/dependencies.jl")
-include("demography/simulate/socialCareTransition.jl")
-include("demography/simulate/care.jl")
-include("demography/simulate/income.jl")
-include("demography/simulate/jobmarket.jl")
-include("demography/simulate/benefits.jl")
-include("demography/simulate/wealth.jl")
+include("simulate/allocate.jl")
+include("simulate/death.jl")
+include("simulate/birth.jl")  
+include("simulate/divorce.jl")       
+include("simulate/ageTransition.jl")
+include("simulate/socialTransition.jl")
+include("simulate/jobtransition.jl")
+include("simulate/relocate.jl")
+include("simulate/marriages.jl")
+include("simulate/dependencies.jl")
+include("simulate/socialCareTransition.jl")
+include("simulate/care.jl")
+include("simulate/income.jl")
+include("simulate/jobmarket.jl")
+include("simulate/benefits.jl")
+include("simulate/wealth.jl")
 
 
 using Utilities
@@ -58,6 +59,7 @@ mutable struct Model
     socialCache :: SocialCache
     socialCareCache :: SocialCareCache
     divorceCache :: DivorceCache
+    jobCache :: JobCache
 end
 
 
@@ -84,7 +86,7 @@ function createDemographyModel!(demoData, workData, pars)
             demoData.pre51Deaths[yearsMort, 2:3], demoData.deathFemale, demoData.deathMale, 
             workData.unemployment, workData.wealth,
             BirthCache{Person}(), DeathCache(), MarriageCache{Person}(), SocialCache(),
-            SocialCareCache(), DivorceCache())
+            SocialCareCache(), DivorceCache(), JobCache())
 end
 
 
@@ -137,6 +139,7 @@ function stepModel!(model, time, pars)
     divorcePreCalc!(model, fuse(pars.poppars, pars.divorcepars, pars.workpars))
     birthPreCalc!(model, fuse(pars.poppars, pars.birthpars))
     deathPreCalc!(model, pars.poppars)
+    jobPreCalc!(model, time, fuse(pars.poppars, pars.workpars))
 
     applyTransition!(model.pop, "death") do person
         death!(person, time, model, pars.poppars)
@@ -162,7 +165,14 @@ function stepModel!(model, time, pars)
     
     updateWealth!(model.pop, model.wealthPercentiles, pars.workpars)
     
-    jobMarket!(model, time, fuse(pars.workpars, pars.poppars))
+    selected = Iterators.filter(selectUnemployed, model.pop)
+    applyTransition!(selected, "hire") do person
+        unemployedTransition!(person, time, model, fuse(pars.poppars, pars.workpars))
+    end
+    selected = Iterators.filter(selectEmployed, model.pop)
+    applyTransition!(selected, "fire") do person
+        employedTransition!(person, time, model, fuse(pars.poppars, pars.workpars))
+    end
 
     selected = Iterators.filter(p->selectSocialCareTransition(p, pars.workpars), model.pop)
     applyTransition!(selected, "social care") do person

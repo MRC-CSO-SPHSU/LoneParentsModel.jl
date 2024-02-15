@@ -1,6 +1,7 @@
 using  Parameters
 export MapPars, PopulationPars, DivorcePars, WorkPars, ModelPars
 
+
 "Parameters describing map properties"
 @with_kw mutable struct MapPars 
     mapDensityModifier::Float64 = 0.6   # for allocating houses in towns 
@@ -144,6 +145,7 @@ end
     maternityLeaveDuration :: Rational{Int}  = 9//12
     ageTeenagers :: Int                 = 13
     ageOfAdulthood :: Int               = 16
+    ageOfIndependence :: Int			= 18
     ageOfRetirement :: Int              = 65
     minContributionPeriods :: Int       = 12 * 35
     wageVar :: Float64                  = 0.2
@@ -152,7 +154,8 @@ end
     finalIncomeSigma :: Vector{Float64} = [0.25, 0.3, 0.35, 0.4, 0.5]
     #incomeFinalLevels :: Vector{Float64} = [12.0, 16.0, 25.0, 40.0, 60.0]
     incomeGrowthRate :: Vector{Float64} = [0.4/12.0, 0.35/12.0, 0.3/12.0, 0.25/12.0, 0.2/12.0]
-    workingAge :: Vector{Int}           = [16, 18, 20, 22, 24]
+    "specific ages at which people can stop studying and start working"
+    startWorkingAge :: Vector{Int}           = [16, 18, 20, 22, 24]
     "working hours by care requirement"
     weeklyHours :: Vector{Float64}      = [40.0, 20.0, 10.0, 0.0, 0.0]
     constantIncomeParam :: Float64      = 50.0
@@ -267,7 +270,9 @@ end
 
 "Social care"
 @with_kw mutable struct CarePars
-    careBias :: Float64 						= 0.9
+    numCareLevels :: Int						= 5
+    careBias :: Float64							= 0.9
+    careNeedBias :: Float64 					= 0.9
     femaleAgeCareScaling :: Float64				= 19.0
     maleAgeCareScaling :: Float64				= 18.0
     personCareProb :: Float64					= 0.0008
@@ -283,6 +288,34 @@ end
     careSupplyByStatus :: Vector{Int}			= [ 0, 10, 24, 32, 60, 48 ]
     careQuantum :: Int							= 2
 end
+
+"Care tasks"
+@with_kw mutable struct TaskCarePars
+    "how often to iterate care distribution"
+    nIterCareDist :: Int						= 3
+    stopBabyCareAge :: Int						= 1
+    stopChildCareAge :: Int						= 13
+    babyCarePerDay :: Int						= 12
+    childCarePerDay :: Int						= 14
+    socialCareDemandPerDay :: Vector{Int}		= [ 0, 2, 4, 8, 12 ]
+    careSupplyMaternity :: Int					= 84
+    "effect of task importance on acceptance probability"
+    acceptProbPolarity :: Float64				= 2
+    "Care weight by relatedness and type. Relatedness (carer is): child, parent, partner, sibling, other. Type: child care, social care."
+    careWeightRelated :: Matrix{Float64}		= [ Inf 0.5; 1.0 1.0; Inf 1.0; 0.8 0.5; 0.5 0.2 ]
+    "Care weight by (spatial) distance in order: same house, same town, otherwise."
+    careWeightDistance :: Vector{Float64}		= [1.0, 0.5, 0.1]
+end
+
+"housing"
+@with_kw mutable struct HousingPars
+    ownershipProbExp :: Float64 = 0.1
+    incomeOwnershipShares :: Vector{Float64} = [0.2, 0.4, 0.5, 0.57, 0.63, 0.67, 0.71, 0.75, 0.79, 0.83]
+    ageOwnershipShares :: Vector{Float64} = [0.12, 0.44, 0.61, 0.71, 0.77, 0.79]
+    HOAgeRanges :: Vector{Float64} = [24, 34, 44, 54, 64]
+    HOAgeBiases :: Vector{Float64} = [1.0, 3.67, 5.0, 5.9, 6.4, 6.6]
+end
+
 
 
 "Data files"
@@ -310,10 +343,13 @@ struct ModelPars
     divorcepars ::  DivorcePars 
     marriagepars :: MarriagePars
     carepars :: CarePars
+    taskcarepars :: TaskCarePars
+    housingpars :: HousingPars
     datapars    :: DataPars
 end 
 
 
 ModelPars() = ModelPars(MapPars(), BenefitMapPars(), PopulationPars(), BirthPars(), WorkPars(), 
-              BenefitPars(), DivorcePars(), MarriagePars(), CarePars(), DataPars())
+              BenefitPars(), DivorcePars(), MarriagePars(), CarePars(), TaskCarePars(), HousingPars(), 
+              DataPars())
 

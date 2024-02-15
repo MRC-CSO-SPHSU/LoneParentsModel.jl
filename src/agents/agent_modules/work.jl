@@ -29,7 +29,7 @@ const WST = WorkStatus.T
     workingHours :: Int = 0 
     jobShift :: Shift = Shift()
     daysOff :: Vector{Int} = []
-    jobSchedule :: Matrix{Bool} = zeros(Bool, 7, 24)
+    jobSchedule :: Matrix{Bool} = zeros(Bool, 24, 7)
     "sum of actual working hours"
     availableWorkingHours :: Int = 0
     "lifetime work"
@@ -42,21 +42,17 @@ const WST = WorkStatus.T
     monthHired :: Int = 0
 end
 
+
 mutable struct RMWork
     "marker for people who enter job market outside of jobMarket function 
     (to assign unemployment duration)"
     newEntrant :: Bool = true
     unemploymentDuration :: Int = 0
 end        
-    
+
+
 function setEmptyJobSchedule!(work)
-    work.jobSchedule = zeros(Bool, 7, 24)
-end
-
-
-function enterJobMarket!(person)
-    @assert person.unemploymentMonths == 0
-    person.status = WorkStatus.unemployed
+    fill!(work.jobSchedule, false)
 end
 
 

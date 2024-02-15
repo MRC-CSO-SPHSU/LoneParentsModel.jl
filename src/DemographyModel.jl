@@ -3,6 +3,7 @@ module DemographyModel
 export Model, createDemographyModel!, initializeDemographyModel!, stepModel!
 
 include("agents/shift.jl")
+include("agents/task.jl")
 include("agents/town.jl")
 include("agents/house.jl")
 include("agents/person.jl")
@@ -10,6 +11,7 @@ include("agents/world.jl")
 
 include("common/income.jl")
 include("common/jobmarket.jl")
+include("common/tasksCare.jl")
 
 include("setup/map.jl")
 include("setup/population.jl")
@@ -32,7 +34,8 @@ include("simulate/income.jl")
 include("simulate/jobmarket.jl")
 include("simulate/benefits.jl")
 include("simulate/wealth.jl")
-
+include("simulate/housing_topdown.jl")
+include("simulate/taskscare.jl")
 
 using Utilities
 
@@ -100,7 +103,9 @@ function initialConnectP!(pop, houses, pars)
 end
 
 
-function initializeDemographyModel!(model, poppars, workpars, mappars, mapbenefitpars)
+function initializeDemographyModel!(
+    model, poppars, workpars, carepars, taskcarepars, mappars, mapbenefitpars)
+    
     initialConnectH!(model.houses, model.towns, mappars)
     initialConnectP!(model.pop, model.houses, mappars)
 
@@ -112,6 +117,7 @@ function initializeDemographyModel!(model, poppars, workpars, mappars, mapbenefi
     end
     
     initJobs!(model, fuse(poppars, workpars))
+    initCare!(model, fuse(carepars, taskcarepars))
 
     nothing
 end
@@ -138,11 +144,11 @@ function stepModel!(model, time, pars)
     socialCarePreCalc!(model, fuse(pars.poppars, pars.carepars))
     divorcePreCalc!(model, fuse(pars.poppars, pars.divorcepars, pars.workpars))
     birthPreCalc!(model, fuse(pars.poppars, pars.birthpars))
-    deathPreCalc!(model, pars.poppars)
+    deathPreCalc!(model, fuse(pars.poppars, pars.carepars))
     jobPreCalc!(model, time, fuse(pars.poppars, pars.workpars))
 
     applyTransition!(model.pop, "death") do person
-        death!(person, time, model, pars.poppars)
+        death!(person, time, model, fuse(pars.poppars, pars.carepars))
     end
     removeDead!(model)
 
@@ -158,12 +164,14 @@ function stepModel!(model, time, pars)
 
     selected = Iterators.filter(p->selectAgeTransition(p, pars.workpars), model.pop)
     applyTransition!(selected, "age") do person
-        ageTransition!(person, time, model, pars.workpars)
+        ageTransition!(person, time, model, fuse(pars.workpars, pars.taskcarepars))
     end
     
     updateIncome!(model, time, pars.workpars)
     
     updateWealth!(model.pop, model.wealthPercentiles, pars.workpars)
+    
+    houseOwnership!(model, pars.housingpars)
     
     selected = Iterators.filter(selectUnemployed, model.pop)
     applyTransition!(selected, "hire") do person
@@ -176,23 +184,17 @@ function stepModel!(model, time, pars)
 
     selected = Iterators.filter(p->selectSocialCareTransition(p, pars.workpars), model.pop)
     applyTransition!(selected, "social care") do person
-        socialCareTransition!(person, time, model, fuse(pars.poppars, pars.carepars))
+        socialCareTransition!(person, time, model, fuse(pars.poppars, pars.carepars, pars.taskcarepars))
     end
     
     computeBenefits!(model.pop, fuse(pars.benefitpars, pars.workpars))
-    
-    socialCare!(model, pars.carepars)
-    
-    selected = Iterators.filter(p->selectWorkTransition(p, pars.workpars), model.pop)
-    applyTransition!(selected, "work") do person
-        workTransition!(person, time, model, pars.workpars)
-    end
     
     selected = Iterators.filter(p->selectRelocate(p, pars.workpars), model.pop)
     applyTransition!(selected, "relocate") do person
         relocate!(person, time, model, pars.workpars)
     end
-
+    
+    # sort new adults into students and workers
     selected = Iterators.filter(p->selectSocialTransition(p, pars.workpars), model.pop) 
     applyTransition!(selected, "social") do person
         socialTransition!(person, time, model, pars.workpars) 
@@ -210,6 +212,7 @@ function stepModel!(model, time, pars)
             fuse(pars.poppars, pars.marriagepars, pars.birthpars, pars.mappars))
     end
     
+    distributeCare!(model, fuse(pars.carepars, pars.taskcarepars))
     
     append!(model.pop, model.babies)
     empty!(model.babies)

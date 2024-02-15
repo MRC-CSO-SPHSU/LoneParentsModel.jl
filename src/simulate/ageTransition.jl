@@ -3,8 +3,60 @@ using Distributions
 export selectAgeTransition, ageTransition!, selectWorkTransition, workTransition!
 
 
-selectAgeTransition(person, pars) = person.alive
+selectAgeTransition(person, pars) = true
 
+
+function becomeStudent!(person, pars)
+    person.classRank = 0
+end
+
+
+function startRetirement!(person, pars)
+    loseJob!(person)
+    shareWorkingTime = person.workingPeriods / pars.minContributionPeriods
+
+    dK = rand(Normal(0, pars.wageVar))
+    person.pension = person.lastIncome * shareWorkingTime * exp(dK)
+end
+
+
+function changeStatus!(person, newStatus, pars)
+    person.status = newStatus
+    careSupplyChanged!(person, pars)
+end
+
+
+function changeAge!(person, newAge, model, pars)
+    person.age = newAge
+    
+    # NOTE: we assume all age transitions happen at whole numbers of years
+    if ! isinteger(person.age)
+        return
+    end
+    
+    # child ages out of care need this time step
+    if person.age == pars.stopBabyCareAge || person.age == pars.stopChildCareAge 
+        careNeedChanged!(person, pars)
+    end
+
+    if person.age == pars.ageOfIndependence
+        # also updates guardian
+        setAsIndependent!(person)
+    end
+    
+    if person.age == pars.ageTeenagers
+        changeStatus!(person, WorkStatus.teenager, pars)
+    # all agents first become students, start working in social transition
+    elseif person.age == pars.ageOfAdulthood
+        becomeStudent!(person, pars)
+        changeStatus!(person, WorkStatus.student, pars)
+    elseif person.age == pars.ageOfRetirement
+        startRetirement!(person, pars)
+        changeStatus!(person, WorkStatus.retired, pars)
+    end
+end
+
+"Update age, maternity status and independence."
 function ageTransition!(person, time, model, pars)
     if isInMaternity(person)
         # count maternity months
@@ -14,53 +66,13 @@ function ageTransition!(person, time, model, pars)
         if maternityDuration(person) >= pars.maternityLeaveDuration
             endMaternity!(person)
         end
-    end
-
-        # TODO part of location module, TBD
-        #if hasBirthday(person, month)
-        #    person.movedThisYear = false
-        #    person.yearInTown += 1
-        #end
-    agestep!(person)
+    end 
     
-    # TODO parameterise dt
+    changeAge!(person, person.age + 1//12, model, pars)
+    
     if !isSingle(person)
-        person.pTime = person.pTime + 1//12
-    end
-
-    if person.age == 18
-        # also updates guardian
-        setAsIndependent!(person)
+        person.pTime += 1//12
     end
 end
 
-selectWorkTransition(person, pars) = 
-    person.alive && person.status != WorkStatus.retired && hasBirthday(person)
-    
-function workTransition!(person, time, model, pars)
-    if person.age == pars.ageTeenagers
-        person.status = WorkStatus.teenager
-        return
-    end
 
-    if person.age == pars.ageOfAdulthood
-        person.status = WorkStatus.student
-        person.classRank = 0
-
-        return
-    end
-
-    if person.age == pars.ageOfRetirement
-        person.status = WorkStatus.retired
-        setEmptyJobSchedule!(person)
-        person.wage = 0
-
-        shareWorkingTime = person.workingPeriods / pars.minContributionPeriods
-
-        dK = rand(Normal(0, pars.wageVar))
-        person.pension = person.lastIncome * shareWorkingTime * exp(dK)
-        return
-    end
-
-    #person.income = person.wage * pars.weeklyHours[person.careNeedLevel+1]
-end

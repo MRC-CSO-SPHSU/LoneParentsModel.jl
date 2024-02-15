@@ -189,7 +189,7 @@ function initWork!(person, pars)
 
     class = person.classRank+1
 
-    if person.age < pars.workingAge[class]
+    if person.age < pars.startWorkingAge[class]
         person.status = WorkStatus.student
         return
     end
@@ -197,7 +197,7 @@ function initWork!(person, pars)
     person.status = WorkStatus.worker
 
     workingTime = 0
-    for i in pars.workingAge[class]:floor(Int, person.age)
+    for i in pars.startWorkingAge[class]:floor(Int, person.age)
         workingTime *= pars.workDiscountingTime
         workingTime += 1
     end
@@ -329,4 +329,16 @@ function initJobs!(model, pars)
     initWealth!(model.houses, model.wealthPercentiles, pars)
     
     nothing
+end
+
+
+function initCare!(model, pars)
+    for person in model.pop
+        # skip adolescents/adults that don't need care
+        if person.age >= pars.stopChildCareAge && socialCareDemand(person, pars) <= 0
+            continue
+        end
+        
+        initCareTasks!(person, pars)
+    end
 end

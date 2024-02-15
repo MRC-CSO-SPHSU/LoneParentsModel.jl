@@ -77,7 +77,7 @@ function pPotentialMotherInAllPop(model, pars)
 end
 
 
-function computeBirthProb(woman, parameters, model, currstep)
+function computeBirthProb(woman, pars, model, currstep)
     (curryear,currmonth) = date2yearsmonths(currstep)
     currmonth = currmonth + 1   # adjusting 0:11 => 1:12 
 
@@ -87,13 +87,13 @@ function computeBirthProb(woman, parameters, model, currstep)
     end
     
     ageYears = yearsold(woman)
-    fertAge = ageYears-parameters.minPregnancyAge+1
+    fertAge = ageYears-pars.minPregnancyAge+1
     
     if curryear < 1951
         # number of children per uk resident and year
-        rawRate = model.pre51Fertility[Int(curryear-parameters.startTime+1)] /
+        rawRate = model.pre51Fertility[Int(curryear-pars.startTime+1)] /
             # scale by number of women that can actually get pregnant
-            pPotentialMotherInAllPop(model, parameters) * 
+            pPotentialMotherInAllPop(model, pars) * 
             # and multiply with age-specific fertility factor 
             model.fertFByAge51[fertAge]
     else
@@ -128,33 +128,25 @@ function effectsOfMaternity!(woman, pars)
 end
 
 
-selectBirth(person, parameters) = isFertileWoman(person, parameters) && !isSingle(person) && 
+selectBirth(person, pars) = isFertileWoman(person, pars) && !isSingle(person) && 
     ageYoungestAliveChild(person) > 1 
 
 
-function birth!(woman, currstep, model, parameters, addBaby!)
-    birthProb = computeBirthProb(woman, parameters, model, currstep)
+function birth!(woman::PERSON, currstep, model, pars, addBaby!) where {PERSON}
+    birthProb = computeBirthProb(woman, pars, model, currstep)
                         
     assumption() do
         @assert isFemale(woman) 
         @assert ageYoungestAliveChild(woman) > 1 
         @assert !isSingle(woman)
-        @assert woman.age >= parameters.minPregnancyAge 
-        @assert woman.age <= parameters.maxPregnancyAge
+        @assert woman.age >= pars.minPregnancyAge 
+        @assert woman.age <= pars.maxPregnancyAge
         @assert birthProb >= 0 
     end
                         
-    #=
-    The following code is commented in the python code: 
-    #baseRate = self.baseRate(self.socialClassShares, self.p['fertilityBias'], rawRate)
-    #fertilityCorrector = (self.socialClassShares[woman.classRank] - self.p['initialClassShares'][woman.classRank])/self.p['initialClassShares'][woman.classRank]
-    #baseRate *= 1/math.exp(self.p['fertilityCorrector']*fertilityCorrector)
-    #birthProb = baseRate*math.pow(self.p['fertilityBias'], woman.classRank)
-    =#
-                        
     if rand() < p_yearly2monthly(limit(0.0, birthProb, 1.0)) 
                         
-        baby = Person(gender=rand([male,female]))
+        baby = PERSON(gender=rand([male,female]))
         moveToHouse!(baby, woman.pos)
         setAsParentChild!(baby, woman)
         if !isSingle(woman) # currently not an option
@@ -162,13 +154,15 @@ function birth!(woman, currstep, model, parameters, addBaby!)
         end
 
         # this goes first, so that we know material circumstances
-        effectsOfMaternity!(woman, parameters)
+        effectsOfMaternity!(woman, pars)
         
         setAsGuardianDependent!(woman, baby)
         if !isSingle(woman) # currently not an option
             setAsGuardianDependent!(woman.partner, baby)
         end
         setAsProviderProvidee!(woman, baby)
+        
+        changeStatus!(baby, WorkStatus.child, pars)
 
         addBaby!(model, baby)
     end # if rand()

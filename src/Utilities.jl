@@ -7,12 +7,14 @@ module Utilities
 
 # Functions
 export p_yearly2monthly, applyTransition!, remove_unsorted!, limit 
+export separate
 export sorted_unique!, date2yearsmonths, age2yearsmonths
 export checkAssumptions!, ignoreAssumptions!, assumption, setDelay!, delay
 export setVerbose!, unsetVerbose!, verbose, verbosePrint, delayedVerbose
-export fuse, countSubset, @static_var
+export fuse, countSubset 
 export dump, dump_property, dump_header
 export sumClassBias, rateBias, preCalcRateBias!
+export WeightSampler, sampleNoReplace!, sampleNoReplaceFrom!, resetSampler!, initWeight!, mapWeights
 
 
 
@@ -37,18 +39,38 @@ function remove_unsorted!(list, index)
     pop!(list)
 end
 
+
+function separate(pred, list)
+    res_true = eltype(list)[]
+    res_false = eltype(list)[]
+    
+    for el in list
+        if pred(el)
+            push!(res_true, el)
+        else
+            push!(res_false, el)
+        end
+    end
+    
+    res_true, res_false
+end
+
+"Remove double elements from a sorted vector."
 function sorted_unique!(ar)
+    if isempty(ar)
+        return
+    end
     v = ar[end]
-    l = max(0, length(ar) - 1)
+    l = length(ar) - 1
     for i in l:-1:1
         e = ar[i]
         if e == v
-            ar[i] = ar[end]
-            pop!(ar)
+            remove_unsorted!(ar, i)
         else
             v = e
         end
     end
+    nothing
 end
 
 "Apply a transition function to an iterator."
@@ -66,7 +88,7 @@ end
     end
 end
 
-"keep variable across function calls"
+#="keep variable across function calls"
 macro static_var(init)
   var = gensym()
   Base.eval(__module__, :(const $var = $init))
@@ -74,7 +96,7 @@ macro static_var(init)
     global $var
     $var
   end |> esc
-end
+end=#
 
 
 "Count the elements of a subset and a subset of that subset of population."
@@ -230,5 +252,51 @@ function dump(io, obj, FS="\t", ES=",")
     end
 end
 
+
+mutable struct WeightSampler{LIST}
+    weights :: LIST
+    wSum :: Float64
+end
+
+WeightSampler(weights::LIST) where {LIST} = WeightSampler(weights, sum(weights))
+
+function sampleNoReplace!(sampler)
+    r = rand() * sampler.wSum
+    i = 1
+    while  (r -= sampler.weights[i]) > 0  
+        i += 1
+    end
+    
+    sampler.wSum -= sampler.weights[i]
+    sampler.weights[i] = 0.0
+    
+    i
+end
+
+function sampleNoReplaceFrom!(sampler, list, n)
+    @assert length(sampler.weights) == length(list)
+    res = Vector{eltype(list)}()
+    for i in 1:n
+        push!(res, list[sampleNoReplace!(sampler)])
+    end
+    res
+end
+
+function resetSampler!(sampler, sz=0)
+    resize!(sampler.weights, sz)
+    sampler.wSum = 0
+end
+
+function initWeight!(sampler, i, val=0.0)
+    sampler.weights[i] = val
+    sampler.wSum += val
+end
+
+function mapWeights!(fn, sampler, list)
+    resetSampler!(sampler, length(list))
+    for (i, e) in enumerate(list)
+        initWeight!(sampler, i, fn(e))
+    end
+end
 
 end # module Utilities  

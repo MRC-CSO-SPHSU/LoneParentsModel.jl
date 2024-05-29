@@ -1,43 +1,26 @@
 module DemographyModel
 
-export Model, createDemographyModel!, initializeDemographyModel!, stepModel!
 
-include("agents/shift.jl")
-include("agents/task.jl")
-include("agents/town.jl")
-include("agents/house.jl")
-include("agents/person.jl")
-include("agents/world.jl")
+using Utilities
 
-include("common/income.jl")
-include("common/jobmarket.jl")
-include("common/tasksCare.jl")
+using DemoPerson, DemoHouse, Towns, Tasks, Shifts, World 
+using TasksCareCM
+
 
 include("setup/map.jl")
 include("setup/population.jl")
 include("setup/mapPop.jl")
 include("setup/mapBenefits.jl")
 
-include("simulate/allocate.jl")
-include("simulate/death.jl")
-include("simulate/birth.jl")  
-include("simulate/divorce.jl")       
-include("simulate/ageTransition.jl")
-include("simulate/socialTransition.jl")
-include("simulate/jobtransition.jl")
-include("simulate/relocate.jl")
-include("simulate/marriages.jl")
-include("simulate/dependencies.jl")
-include("simulate/socialCareTransition.jl")
-include("simulate/care.jl")
-include("simulate/income.jl")
-include("simulate/jobmarket.jl")
-include("simulate/benefits.jl")
-include("simulate/wealth.jl")
-include("simulate/housing_topdown.jl")
-include("simulate/taskscare.jl")
 
-using Utilities
+using Dependencies, Age, Social, TasksCare, Income, SocialCare, Relocate, Divorce, Marriage, Death
+using Birth, JobTransition, Benefits, Wealth, HousingTopDown
+
+
+include("demoEvents.jl")
+
+
+export Model, createDemographyModel!, initializeDemographyModel!, stepModel!
 
 
 mutable struct Model

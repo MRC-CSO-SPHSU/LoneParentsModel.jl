@@ -295,10 +295,10 @@ end
     nIterCareDist :: Int						= 3
     stopBabyCareAge :: Int						= 1
     stopChildCareAge :: Int						= 13
-    babyCarePerDay :: Int						= 12
+    babyCarePerDay :: Int						= 14
     childCarePerDay :: Int						= 14
     socialCareDemandPerDay :: Vector{Int}		= [ 0, 2, 4, 8, 12 ]
-    careSupplyMaternity :: Int					= 84
+    careSupplyMaternity :: Int					= 98
     "effect of task importance on acceptance probability"
     acceptProbPolarity :: Float64				= 2
     "Care weight by relatedness and type. Relatedness (carer is): child, parent, partner, sibling, other. Type: child care, social care."

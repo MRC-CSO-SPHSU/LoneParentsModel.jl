@@ -6,8 +6,8 @@ using Utilities
 using ChangeEvents
 
 using KinshipAM, TasksAM, DemoPerson, Tasks
-using TasksCareCM
-using Age, Social, Death
+using TasksCareCM, SocialCM
+using Age, Death
 
 export availableCareTime, removeAllCareAndTasks!, careNeedChanged!, careSupplyChanged!, distributeCare! 
 export TasksCareT 
@@ -53,6 +53,7 @@ function distributeCare!(model, pars)
     AgentT = eltype(model.pop)
     TaskT = eltype(model.pop[1].openTasks)
     
+    # agent => tasks
     askedTasks = Dict{AgentT, Vector{TaskT}}()
     
     print("tasks:")
@@ -68,8 +69,9 @@ function distributeCare!(model, pars)
         end
         
         nc = length(askedTasks)
+        # x[2] is the list of tasks
         nt = sum(x->length(x[2]), askedTasks)
-        print("$nc\t")
+        #print("$nc\t")
         
         # let carers accept tasks
         for (carer, tasks) in askedTasks
@@ -346,7 +348,7 @@ end
 "Sigmoid with f(0)=0, f(1/2)=1/2, f(1)=1. Linear for shape=1; higher values increase slope at 0.5."
 function sigmoid(x, shape)
     xs = x^shape
-    xs/(xs + (1-xs)^shape)
+    xs/(xs + (1-x)^shape)
 end
 
 "Simple way to calculate probability to accept a task from importance."

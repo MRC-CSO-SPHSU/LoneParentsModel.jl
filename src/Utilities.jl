@@ -43,6 +43,7 @@ function remove_unsorted!(list, index)
 end
 
 
+"Separate `list` into two lists dependent on the value of `pred`."
 function separate(pred, list)
     res_true = eltype(list)[]
     res_false = eltype(list)[]
@@ -89,6 +90,7 @@ end
             println(count, " agents processed in ", name)
         end
     end
+    nothing
 end
 
 #="keep variable across function calls"

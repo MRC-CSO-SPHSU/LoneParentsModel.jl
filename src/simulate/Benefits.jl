@@ -1,3 +1,7 @@
+"Implements the UK benefits system."
+
+
+
 module Benefits
     
 
@@ -9,7 +13,7 @@ using BasicInfoAM, KinshipAM, WorkAM, DependenciesAM, DemoPerson
 export computeBenefits!
 
 
-# Debugg benefit allocation process
+# Debug benefit allocation process
 function computeBenefits!(pop, pars)
     
     # Reset counters
@@ -64,7 +68,7 @@ function disabilityBenefits!(pop, pars)
     for agent in Iterators.filter(x->16<=x.age<pars.ageOfRetirement && x.careNeedLevel>0, pop)
         disabledAdultBenefit = pars.carePIP[floor(Int, (agent.careNeedLevel+1)/2)]
         if agent.careNeedLevel > 1
-            disabledAdultBenefit + pars.mobilityPIP[floor(Int, agent.careNeedLevel/2)]
+            disabledAdultBenefit += pars.mobilityPIP[floor(Int, agent.careNeedLevel/2)]
         end
         
         agent.highestDisabilityBenefits = agent.careNeedLevel > 2

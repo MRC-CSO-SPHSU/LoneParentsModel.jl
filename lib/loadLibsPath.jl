@@ -13,7 +13,7 @@
 function addToLoadPath!(paths...)
     for path in paths
         if ! (path in LOAD_PATH)
-            push!(LOAD_PATH, path)
+            insert!(LOAD_PATH, 1, path)
         end
     end
 end

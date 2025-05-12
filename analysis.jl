@@ -10,6 +10,9 @@ const MVA = MeanVarAcc{Float64}
 # maximum, minimum
 const MMA = MaxMinAcc{Float64}
 
+const HAF = HistAcc{Float64}
+const HAI = HistAcc{Int}
+
 function income_deciles(pop)
     incomes = [ p.income for p in pop ]
     sort!(incomes)
@@ -47,7 +50,7 @@ providesCare(person, pars) = person.careNeedLevel == 0 && person.age >= 13
     for house in model.houses 
         # format:
         # @stat(name, accumulators...) <| expression
-        @stat("hh_size", MVA, MMA, HistAcc(1.0, 1.0)) <| Float64(length(house.occupants))
+        @stat("hh_size", MVA, MMA, HAF(1.0, 1.0)) <| Float64(length(house.occupants))
     end
 
     # households with children
@@ -65,7 +68,7 @@ providesCare(person, pars) = person.careNeedLevel == 0 && person.age >= 13
         @stat("n_lp_hh", CountAcc) <| is_lp
         # number of children in lp households
         if is_lp
-            @stat("n_ch_lp_hh", HistAcc(0, 1)) <| count(p->p.age<18, house.occupants)
+            @stat("n_ch_lp_hh", HAI(0, 1)) <| count(p->p.age<18, house.occupants)
         end
         
        #= ncs = house.netCareSupply
@@ -82,24 +85,24 @@ providesCare(person, pars) = person.careNeedLevel == 0 && person.age >= 13
     end
 
     for person in model.pop 
-        @stat("age", MVA, HistAcc(0.0, 3.0)) <| Float64(person.age)
+        @stat("age", MVA, HAF(0.0, 3.0)) <| Float64(person.age)
         @stat("married", CountAcc) <| (!isSingle(person))
         @stat("single", CountAcc) <| (person.age > 18 && isSingle(person))
         @stat("alive", CountAcc) <| true
-        @stat("class", HistAcc(0.0, 1.0, 4.0)) <| Float64(person.classRank)
-        @stat("careneed", HistAcc(0.0, 1.0)) <| Float64(person.careNeedLevel)
+        @stat("class", HAF(0.0, 1.0, 4.0)) <| Float64(person.classRank)
+        @stat("careneed", HAF(0.0, 1.0)) <| Float64(person.careNeedLevel)
         @stat("income", MVA) <| person.income
         @stat("employed", CountAcc) <| statusWorker(person)
         @stat("unemployed", CountAcc) <| statusUnemployed(person)
         @stat("n_orphans", CountAcc) <| isOrphan(person)
         if isFemale(person) && person.age>50
-            @stat("n_children", HistAcc(0,1)) <| nChildren(person)
+            @stat("n_children", HAI(0,1)) <| nChildren(person)
         end
         if isFemale(person)
-            @stat("f_status", HistAcc(0, 1, 5)) <| Int(person.status)
+            @stat("f_status", HAI(0, 1, 5)) <| Int(person.status)
         end
         if isMale(person)
-            @stat("m_status", HistAcc(0, 1, 5)) <| Int(person.status)
+            @stat("m_status", HAI(0, 1, 5)) <| Int(person.status)
         end
         if requiresCare(person, pars)
             @stat("open_tasks", MVA) <| Float64(length(person.openTasks))
@@ -107,14 +110,14 @@ providesCare(person, pars) = person.careNeedLevel == 0 && person.age >= 13
         if providesCare(person, pars)
             @stat("av_care_time", MVA) <| Float64(availableCareTime(person, fuse(pars.carepars, pars.taskcarepars)))
         end
-        #@stat("p_care_supply", HistAcc(0.0, 4.0), MVA) <| 
+        #@stat("p_care_supply", HA(0.0, 4.0), MVA) <| 
         #    Float64(weeklyCareSupply(person, pars.carepars))
-        #@stat("p_care_demand", HistAcc(0.0, 4.0), MVA) <| 
+        #@stat("p_care_demand", HA(0.0, 4.0), MVA) <| 
         #    Float64(weeklyCareDemand(person, pars.carepars))
     end
     
     for person in Iterators.filter(p -> isFemale(p) && ! isSingle(p), model.pop) 
-        @stat("age_diff", HistAcc(-10.0, 1.0)) <| Float64(person.partner.age - person.age)
+        @stat("age_diff", HAF(-10.0, 1.0)) <| Float64(person.partner.age - person.age)
     end
     @record "income_deciles" Vector{Float64} income_deciles(model.pop)
 end
